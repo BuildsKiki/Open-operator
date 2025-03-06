@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>OpenOperator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 400px;
+            padding: 15px;
+            background-color: #2f3542;
+            color: #ffffff;
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .scan-button {
+            padding: 10px;
+            background-color: #3a4150;
+            color: white;
+            border: 1px solid #4a4f5d;
+            cursor: pointer;
+            border-radius: 8px;
+            flex: 1;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .scan-button:hover {
+            background-color: #454e63;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 15px;
+            resize: none;
+            padding: 12px;
+            border: 1px solid #4a4f5d;
+            border-radius: 8px;
+            background-color: #3a4150;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-family: Arial, sans-serif;
+        }
+
+        textarea::placeholder {
+            color: #a4b0be;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #3a4150;
+            color: white;
+            border: 1px solid #4a4f5d;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background-color: #454e63;
+        }
+
+        #response {
+            margin-top: 10px;
+            white-space: pre-wrap;
+            background-color: #3a4150;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #4a4f5d;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .settings-button {
+            background-color: #3a4150;
+        }
+
+        .settings-button:hover {
+            background-color: #454e63;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+        }
+
+        .clear-button {
+            background-color: #e74c3c;
+            border: none;
+        }
+
+        .clear-button:hover {
+            background-color: #c0392b;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2f3542;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a4f5d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a6070;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenOperator</h1>
+        <div class="button-container">
+            <button id="scanPage" class="scan-button">Scan Page</button>
+            <button id="settings" class="scan-button settings-button">⚙️ Settings</button>
+        </div>
+        <div class="file-upload-container">
+            <input type="file" id="fileUpload" accept=".py" style="display: none;">
+            <button id="uploadButton" class="scan-button">
+                📁 Upload Python File
+            </button>
+            <span id="fileName" style="color: #a4b0be; margin-left: 10px;"></span>
+        </div>
+        <textarea id="prompt" placeholder="Enter your prompt here..."></textarea>
+        <div class="action-buttons">
+            <button id="send">Send to LLM</button>
+            <button id="clearHistory" class="clear-button">Clear History</button>
+        </div>
+        <div id="response"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

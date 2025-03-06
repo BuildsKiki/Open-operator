@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebLLM App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    .hidden {
+      display: none;
+    }
+    .message-container {
+      margin-bottom: 10px;
+    }
+    .user {
+      text-align: right;
+    }
+    .assistant {
+      text-align: left;
+    }
+    .code-block {
+      background-color: #f9f9f9;
+      border-left: 4px solid #ddd;
+      padding: 10px;
+      font-family: monospace;
+      overflow-x: auto;
+    }
+    .copy-button {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 2px 5px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .copy-button:hover {
+      background-color: #0056b3;
+    }
+    #download {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #download.disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WebLLM App</h1>
+    <div>
+      <button id="download">Download Model</button>
+      <div id="download-status" class="hidden"></div>
+    </div>
+    <div id="chat-box"></div>
+    <textarea id="user-input" rows="3" placeholder="Type your message here..."></textarea>
+    <button id="send" disabled>Send</button>
+    <button id="clear-chat">Clear Chat</button>
+    <div id="chat-stats" class="hidden"></div>
+  </div>
+
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+    /*************** WebGPU Check ***************/
+    if (!navigator.gpu) {
+      alert("WebGPU is not supported in your browser. Please use a compatible browser like the latest version of Chrome or Edge.");
+    }
+
+    /*************** Configuration ***************/
+    const modelConfig = {
+      temperature: 0.1,
+      repetition_penalty: 1.3,
+      presence_penalty: 0.5,
+      frequency_penalty: 0.5,
+      max_tokens: 4000,
+      top_p: 0.95,
+      context_window_size: 32000,
+      sliding_window_size: -1,
+      attention_sink_size: -1,
+    };
+
+    const customAppConfig = {
+      model_list: [
+        {
+          model: "https://huggingface.co/shirman/SmolLM2-1.7B-Instruct-q4f16_1-MLC-WEBGPU",
+          model_id: "shirman/SmolLM2-1.7B-Instruct-q4f16_1-MLC-WEBGPU",
+          model_lib: "https://huggingface.co/shirman/SmolLM2-1.7B-Instruct-q4f16_1-MLC-WEBGPU/resolve/main/SmolLM2-1-7B-Instruct-q4f16_1-MLC-webgpu.wasm",
+          required_features: ["shader-f16"],
+          overrides: {
+            context_window_size: modelConfig.context_window_size,
+            sliding_window_size: modelConfig.sliding_window_size,
+            attention_sink_size: modelConfig.attention_sink_size,
+          },
+        },
+      ],
+    };
+
+    let engine;
+
+    /*************** Model Initialization ***************/
+    async function initializeWebLLMEngine() {
+      const downloadButton = document.getElementById("download");
+      const downloadStatus = document.getElementById("download-status");
+
+      try {
+        downloadButton.textContent = "Downloading...";
+        downloadButton.classList.add("disabled");
+        downloadButton.disabled = true;
+        downloadStatus.classList.remove("hidden");
+        downloadStatus.textContent = "Starting download...";
+
+        engine = await webllm.CreateMLCEngine("shirman/SmolLM2-1.7B-Instruct-q4f16_1-MLC-WEBGPU", {
+          appConfig: customAppConfig,
+          chatOpts: modelConfig,
+          initProgressCallback: (report) => {
+            const progressPercent = Math.round(report.progress * 100);
+            downloadStatus.textContent = `Downloading: ${progressPercent}%`;
+          },
+        });
+
+        downloadButton.textContent = "Model is loaded";
+        downloadButton.disabled = true;
+        document.getElementById("send").disabled = false;
+        document.getElementById("user-input").disabled = false;
+        downloadStatus.textContent = "Model loaded successfully.";
+      } catch (error) {
+        console.error("Error loading model:", error);
+        downloadButton.textContent = "Download Model";
+        downloadButton.disabled = false;
+        downloadStatus.textContent = "Failed to load the model. Please try again.";
+      }
+    }
+
+    /*************** Chat Logic ***************/
+    const messages = [
+      {
+        content: `<system prompt>
+You are an assistant with deep reasoning capabilities. Provide thorough, step-by-step reasoning and self-doubt as part of your analysis.
+</system prompt>`,
+        role: "system",
+      },
+    ];
+
+    async function onMessageSend() {
+      const input = document.getElementById("user-input").value.trim();
+      if (!input) return;
+
+      const userMessage = { content: input, role: "user" };
+      messages.push(userMessage);
+      appendMessage(userMessage);
+
+      document.getElementById("send").disabled = true;
+
+      const assistantMessage = { content: "typing...", role: "assistant" };
+      appendMessage(assistantMessage);
+
+      try {
+        let curMessage = "";
+        const completion = await engine.chat.completions.create({
+          stream: true,
+          messages,
+          ...modelConfig,
+        });
+
+        for await (const chunk of completion) {
+          const curDelta = chunk.choices[0].delta.content;
+          if (curDelta) curMessage += curDelta;
+          updateLastMessage(curMessage);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+        alert("An error occurred while generating the response.");
+      } finally {
+        document.getElementById("send").disabled = false;
+      }
+    }
+
+    /*************** UI Logic ***************/
+    function appendMessage(message) {
+      const chatBox = document.getElementById("chat-box");
+      const container = document.createElement("div");
+      container.classList.add("message-container", message.role);
+      container.textContent = message.content;
+      chatBox.appendChild(container);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function updateLastMessage(content) {
+      const chatBox = document.getElementById("chat-box");
+      const lastMessage = chatBox.querySelector(".message-container:last-child");
+      if (lastMessage) lastMessage.textContent = content;
+    }
+
+    /*************** Event Listeners ***************/
+    document.getElementById("download").addEventListener("click", initializeWebLLMEngine);
+    document.getElementById("send").addEventListener("click", onMessageSend);
+    document.getElementById("clear-chat").addEventListener("click", () => {
+      messages.length = 1; // Reset to only system prompt
+      document.getElementById("chat-box").innerHTML = "";
+    });
+  </script>
+</body>
+</html>
